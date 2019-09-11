@@ -1,6 +1,7 @@
 package escom.ipn.mx.socket;
 
 import java.net.*;
+import java.util.ArrayList;
 import java.util.List;
 
 import escom.ipn.mx.FyleSystemModel.FileSystemModel;
@@ -22,7 +23,7 @@ public class Client_Operations {
 		FileSystemModel fileModelServer = null;
 		try {
 			this.cl = new Socket(host, port);
-			System.out.println("Conexion establecida, preparada para intercambiar objetos");
+			//System.out.println("Conexion establecida, preparada para intercambiar objetos");
 			DataOutputStream dos = new DataOutputStream(this.cl.getOutputStream());
 			dos.writeInt(0);
 			ObjectInputStream ois = new ObjectInputStream(this.cl.getInputStream());
@@ -39,12 +40,12 @@ public class Client_Operations {
 	public void downloadFile(File file, String destiny) {
 		try {
 			this.cl = new Socket(host, port);
-			System.out.println("Conexion establecida, preparada para intercambiar objetos");
 			DataOutputStream dos = new DataOutputStream(this.cl.getOutputStream());
 			dos.writeInt(1);
-			T_File fileToSend = new T_File(file.getName(),file.getAbsolutePath(),destiny,file.length());
 			ObjectOutputStream oos = new ObjectOutputStream(this.cl.getOutputStream());
-			oos.writeObject(fileToSend);
+			T_File fileToGet = new T_File(file.getName(),file.getAbsolutePath(),destiny,file.length());
+			oos.writeObject(fileToGet);
+			recFile();
 			oos.close();
 			dos.close();
 			this.cl.close();
@@ -52,7 +53,44 @@ public class Client_Operations {
 			e.printStackTrace();
 		}
 	}
-	public void recFile() {
-		
+	public void uploadFile(File file, String destiny) {
+		try {
+			this.cl = new Socket(host, port);
+			DataOutputStream dos = new DataOutputStream(this.cl.getOutputStream());
+			dos.writeInt(2);
+			ObjectOutputStream oos = new ObjectOutputStream(this.cl.getOutputStream());
+			T_File fileToLoad = new T_File(file.getName(),file.getAbsolutePath(),destiny,file.length());
+			oos.writeObject(fileToLoad);
+			oos.close();
+			dos.close();
+			this.cl.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	private void recFile() {
+		try {
+			DataInputStream dis = new DataInputStream(this.cl.getInputStream());
+            String nombre = dis.readUTF();
+            String destinyDir = dis.readUTF();
+            long tam = dis.readLong();
+            System.out.println("Preparado para recibir el archivo: "+ nombre+" a guardar en:"+destinyDir+" Tam:"+tam);
+            DataOutputStream dos = new DataOutputStream(new FileOutputStream(destinyDir+"/"+nombre));
+            long r = 0;
+            int n = 0, porcentaje = 0;
+            while (r<tam) {
+                byte[] b = new byte[65536];
+                n = dis.read(b);
+                r = r+n;
+                dos.write(b, 0, n);
+                dos.flush();
+                porcentaje = (int)((r*100)/tam);
+                System.out.println("Recibiste el "+porcentaje+"%");
+            }
+            dis.close();
+            dos.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }

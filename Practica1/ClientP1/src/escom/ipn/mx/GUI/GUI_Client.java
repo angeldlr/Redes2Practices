@@ -2,20 +2,17 @@ package escom.ipn.mx.GUI;
 
 import escom.ipn.mx.FyleSystemModel.*;
 import escom.ipn.mx.socket.Client_Operations;
-import escom.ipn.mx.socket.Types.T_File;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+
 
 import javax.swing.*;
 import javax.swing.event.TreeSelectionEvent;
@@ -28,9 +25,12 @@ public class GUI_Client extends JFrame {
 	private static final long serialVersionUID = 1L;
 
 	/* GUI atributes */
-	private String rootDir = "/home/angeldlr/ClientFiles";
+	private String rootDir;
 	private String rootDirServer;
 	private Client_Operations co;
+	private String host;
+	private int port;
+	private Box box;
 	private JTree fileTreeClient;
 	private JTree fileTreeServer;
 	private JScrollPane leftPane;
@@ -42,10 +42,10 @@ public class GUI_Client extends JFrame {
 	private JMenuItem menuItem;
 	private FileSystemModel fileSystemModelClient;
 	private FileSystemModel fileSystemModelServer;
-	private File selectedServerDirectory = null;
-	private File selectedClientDirectory = null;
-	private File selectedServerFile = null;
-	private File selectedClientFile = null;
+	public File selectedServerDirectory = null;
+	public File selectedClientDirectory = null;
+	public File selectedServerFile = null;
+	public File selectedClientFile = null;
 
 	/* Getters and Setters */
 
@@ -72,6 +72,7 @@ public class GUI_Client extends JFrame {
 	public void setSelectedClientDirectory(File selectedClientDirectory) {
 		this.selectedClientDirectory = selectedClientDirectory;
 	}
+
 	public String getRootDirServer() {
 		return rootDirServer;
 	}
@@ -80,10 +81,35 @@ public class GUI_Client extends JFrame {
 		this.rootDirServer = rootDirServer;
 	}
 	
-	public void initClientOp() {
-		co = new Client_Operations("127.0.0.1",7000);
+	
+	public String getRootDir() {
+		return rootDir;
 	}
+
+	public void setRootDir(String rootDir) {
+		this.rootDir = rootDir;
+	}
+
+	public String getHost() {
+		return host;
+	}
+
+	public void setHost(String host) {
+		this.host = host;
+	}
+
+	public int getPort() {
+		return port;
+	}
+
+	public void setPort(int port) {
+		this.port = port;
+	}
+
 	/* Methods of GUI_Client class */
+	public void initClientOp() {
+		co = new Client_Operations("localhost", 7000);
+	}
 
 	public void initcomponents() {
 		this.setTitle("APP NETWORK COMUNICATIONS P1");
@@ -106,7 +132,9 @@ public class GUI_Client extends JFrame {
 		getFileList();
 		this.fileTreeClient = new JTree(getFileSystemModelClient());
 		this.fileTreeServer = new JTree(getFileSystemModelServer());
-			
+		this.fileTreeClient.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+		this.fileTreeServer.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+		
 		this.leftPane = new JScrollPane(this.fileTreeClient);
 		this.leftPane.setMaximumSize(new Dimension(290, 360));
 		this.rightPane = new JScrollPane(this.fileTreeServer);
@@ -131,7 +159,7 @@ public class GUI_Client extends JFrame {
 		this.fileTreeClient.addMouseListener(new RightClickSelectionNode(this.fileTreeClient, this.popUpClient));
 		this.fileTreeServer.addMouseListener(new RightClickSelectionNode(this.fileTreeServer, this.popUpServer));
 
-		Box box = Box.createHorizontalBox();
+		this.box = Box.createHorizontalBox();
 		box.add(this.leftPane, BorderLayout.WEST);
 		box.add(this.rightPane, BorderLayout.EAST);
 		this.getContentPane().add(box, BorderLayout.CENTER);
@@ -141,23 +169,11 @@ public class GUI_Client extends JFrame {
 		this.setLocationRelativeTo(null);
 		this.setVisible(true);
 	}
+	
 	private void getFileList() {
-		
+
 		setFileSystemModelClient(rootDir);
 		setFileSystemModelServer(co.receiveServerFileModel());
-	}
-	private void updateDirs() {
-		this.fileTreeServer.repaint();
-		this.fileTreeClient.repaint();
-	}
-	private String getFileDetails(File file) {
-		if (file == null)
-			return "";
-		StringBuffer buffer = new StringBuffer();
-		buffer.append("Name: " + file.getName() + "\n");
-		buffer.append("Path: " + file.getPath() + "\n");
-		buffer.append("Size: " + file.length() + "\n");
-		return buffer.toString();
 	}
 
 	/* Listeners implementation */
@@ -167,6 +183,7 @@ public class GUI_Client extends JFrame {
 		public void valueChanged(TreeSelectionEvent e) {
 			JTree fileTree = (JTree) e.getSource();
 			File file = (File) fileTree.getLastSelectedPathComponent();
+			//System.out.println(GUI_Client.this.getFileDetails(file));
 			if (file.isDirectory()) {
 				GUI_Client.this.selectedClientFile = file;
 				GUI_Client.this.selectedClientDirectory = file;
@@ -183,6 +200,7 @@ public class GUI_Client extends JFrame {
 		public void valueChanged(TreeSelectionEvent e) {
 			JTree fileTree = (JTree) e.getSource();
 			File file = (File) fileTree.getLastSelectedPathComponent();
+			//System.out.println(GUI_Client.this.getFileDetails(file));
 			if (file.isDirectory()) {
 				GUI_Client.this.selectedServerFile = file;
 				GUI_Client.this.selectedServerDirectory = file;
@@ -222,7 +240,7 @@ public class GUI_Client extends JFrame {
 
 		@Override
 		public void mouseClicked(MouseEvent e) {
-			
+
 		}
 
 		@Override
@@ -240,40 +258,42 @@ public class GUI_Client extends JFrame {
 	}
 
 	private class MenuListener implements ActionListener {
-		
+
 		@Override
 		public void actionPerformed(ActionEvent e) {
-			
+
 			File selectFile = null;
 			File selectDirectory = null;
-			
+
 			switch (e.getActionCommand()) {
 			case "Upload to root":
-				selectFile =  GUI_Client.this.selectedClientFile;
+				selectFile = GUI_Client.this.selectedClientFile;
 				selectDirectory = GUI_Client.this.selectedServerDirectory;
-				System.out.println("File:\n"+GUI_Client.this.getFileDetails(selectFile));
-				System.out.println("Src:\n"+GUI_Client.this.getFileDetails(selectDirectory));
 				break;
 			case "Upload to selected directory":
 				// method to upload selected file in client to selected directory in server
-				
+
 				break;
 			case "Download to root":
 				// method to download selected file in server to root directory in client
-				selectFile =  GUI_Client.this.selectedServerFile;
-				GUI_Client.this.co.downloadFile(selectFile, GUI_Client.this.rootDir);
+				selectFile = GUI_Client.this.selectedServerFile;
+				if(selectFile.isDirectory())
+					sendDirectory( GUI_Client.this.rootDir, selectFile);
+				else
+					GUI_Client.this.co.downloadFile(selectFile, GUI_Client.this.rootDir);
 				break;
 			case "Download to selected directory":
 				// method to download selected file in client to selected directory in server
-				selectFile =  GUI_Client.this.selectedServerFile;
+				selectFile = GUI_Client.this.selectedServerFile;
 				selectDirectory = GUI_Client.this.selectedClientDirectory;
-				
-				if(selectDirectory != null && selectFile != null && selectDirectory.isDirectory()) {
-					System.out.println("File:\n"+GUI_Client.this.getFileDetails(selectFile));
-					System.out.println("Dest:\n"+GUI_Client.this.getFileDetails(selectDirectory));
-				}else {
-					System.out.println("bad choise");
-					JOptionPane.showMessageDialog(null,"Please choose a valid directory in client files!!","Directory error",JOptionPane.WARNING_MESSAGE);
+
+				if (selectDirectory != null && selectFile != null && selectDirectory.isDirectory()) {
+					if(selectFile.isDirectory()) {
+						sendDirectory(selectDirectory.getAbsolutePath(), selectFile);
+					}
+				} else {
+					JOptionPane.showMessageDialog(null, "Please choose a valid directory in client files!!",
+							"Directory error", JOptionPane.WARNING_MESSAGE);
 				}
 				break;
 			default:
@@ -281,10 +301,17 @@ public class GUI_Client extends JFrame {
 			}
 		}
 	}
-
-	public static void main(String[] args) {
-		GUI_Client serverClient = new GUI_Client();
-		serverClient.initcomponents();
+	private void sendDirectory(String selectDirectory,File selectFile) {
+		File newdir = new File(selectDirectory+"/"+selectFile.getName());
+		newdir.mkdir();
+		File[] dirFiles = selectFile.listFiles();
+		for (File file2 : dirFiles) {
+			if(file2.isDirectory())
+				sendDirectory(newdir.getAbsolutePath(),file2);
+			else
+				GUI_Client.this.co.downloadFile(file2,selectDirectory+"/"+selectFile.getName());
+		}
 	}
+	
 
 }

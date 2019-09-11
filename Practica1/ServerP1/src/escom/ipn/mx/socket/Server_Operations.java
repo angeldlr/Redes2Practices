@@ -1,6 +1,7 @@
 package escom.ipn.mx.socket;
 
 import java.net.*;
+import java.util.ArrayList;
 import java.util.List;
 
 import escom.ipn.mx.FyleSystemModel.FileSystemModel;
@@ -12,7 +13,7 @@ public class Server_Operations {
 	int port;
 	ServerSocket s;
 	Socket cl;
-	private static String rootDir = "/home/angeldlr/ServerFiles";
+	private String rootDir ;
 	public Server_Operations(int port) {
 		super();
 		this.port = port;
@@ -33,6 +34,15 @@ public class Server_Operations {
 	public void setS(ServerSocket s) {
 		this.s = s;
 	}
+	
+	
+	public String getRootDir() {
+		return rootDir;
+	}
+
+	public void setRootDir(String rootDir) {
+		this.rootDir = rootDir;
+	}
 
 	public void initSocket() {
 		try {
@@ -41,8 +51,10 @@ public class Server_Operations {
 			for (;;) {
 				this.cl = s.accept();
 				System.out.println("Cliente conectado desde:" + this.cl.getInetAddress() + ":" + this.cl.getPort());
+				
 				DataInputStream di = new DataInputStream(this.cl.getInputStream());
 				int request = di.readInt();
+				
 				switch (request) {
 				/* if the received request is check file list(0) */
 				case 0:
@@ -54,6 +66,7 @@ public class Server_Operations {
 					break;
 				/* if the received request is to upload files(2) */
 				case 2:
+					checkUploadReq();
 					break;
 				default:
 					break;
@@ -75,25 +88,34 @@ public class Server_Operations {
 	}
 	
 	private void checkDownloadReq() {
-		String file,destinyDir;
 		try {
-			System.out.println("Aca");
 			ObjectInputStream ois = new ObjectInputStream(this.cl.getInputStream());
 			T_File filetoDownload = (T_File)ois.readObject();
-			System.out.println("Name:"+filetoDownload.getName()+" Dest:"+filetoDownload.getDestinyDirectory()+" Size:"+filetoDownload.getSize());
-			//sendFile(file,destinyDir);
+			sendFile(filetoDownload);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
-	private void sendFile(String file,String dirDest) {
-		File fileToSend = new File(file);
+	private void checkUploadReq() {
+		try {
+			ObjectInputStream ois = new ObjectInputStream(this.cl.getInputStream());
+			T_File filetoUpload = (T_File)ois.readObject();
+			System.out.println(filetoUpload);
+			//sendFile(filetoDownload);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	private void sendFile(T_File fileInfo) {
+		File fileToSend = new File(fileInfo.getSourceDirectory());
 		try {
 			DataOutputStream dos = new DataOutputStream(this.cl.getOutputStream());
-            DataInputStream dis = new DataInputStream(new FileInputStream(fileToSend.getAbsolutePath()));
-            dos.writeUTF(fileToSend.getName());
+            DataInputStream dis = new DataInputStream(new FileInputStream(fileToSend));
+            dos.writeUTF(fileInfo.getName());
             dos.flush();
-            dos.writeLong(fileToSend.length());
+            dos.writeUTF(fileInfo.getDestinyDirectory());
+            dos.flush();
+            dos.writeLong(fileInfo.getSize());
             dos.flush();
             long e = 0;
             int n=0,porcentaje=0;
@@ -104,17 +126,37 @@ public class Server_Operations {
                 dos.write(b,0,n);
                 dos.flush();
                 porcentaje = (int)((e*100)/fileToSend.length());
-                System.out.println("Enviando el "+porcentaje+" %");
+                System.out.println("Enviando el "+porcentaje+" %\n");
             }
             dis.close();
             dos.close();
 		} catch (Exception e) {
 		}
 	}
+	private void recFile() {
+		try {
+			DataInputStream dis = new DataInputStream(this.cl.getInputStream());
+            String nombre = dis.readUTF();
+            String destinyDir = dis.readUTF();
+            long tam = dis.readLong();
+            System.out.println("Preparado para recibir el archivo: "+ nombre+" a guardar en:"+destinyDir+" Tam:"+tam);
+            DataOutputStream dos = new DataOutputStream(new FileOutputStream(destinyDir+"/"+nombre));
+            long r = 0;
+            int n = 0, porcentaje = 0;
+            while (r<tam) {
+                byte[] b = new byte[65536];
+                n = dis.read(b);
+                r = r+n;
+                dos.write(b, 0, n);
+                dos.flush();
+                porcentaje = (int)((r*100)/tam);
+                System.out.println("Recibiste el "+porcentaje+"%");
 
-	public static void main(String[] args) {
-		Server_Operations s = new Server_Operations(7000);
-		s.initSocket();
+            }
+            dis.close();
+            dos.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
-
 }
